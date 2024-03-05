@@ -584,7 +584,7 @@ export class BskyAgent extends AtpAgent {
         value: sanitizedValue,
         targets: mutedWord.targets || [],
         actors: mutedWord.actors || [],
-        ttl: mutedWord.ttl || undefined,
+        expiresAt: mutedWord.expiresAt || undefined,
       }
 
       if (mutedWordsPref && AppBskyActorDefs.isMutedWordsPref(mutedWordsPref)) {
@@ -648,7 +648,7 @@ export class BskyAgent extends AtpAgent {
               value: updated.value,
               targets: updated.targets || [],
               actors: updated.actors || [],
-              ttl: updated.ttl || undefined,
+              expiresAt: updated.expiresAt || undefined,
             }
           } else {
             return existingItem
@@ -816,6 +816,6 @@ function migrateLegacyMutedWordsItems(items: AppBskyActorDefs.MutedWord[]) {
     ...item,
     id: item.id || uuid(),
     actors: item.actors || [],
-    ttl: item.ttl || undefined,
+    expiresAt: item.expiresAt || undefined,
   }))
 }
