@@ -5269,6 +5269,7 @@ export const schemaDict = {
           },
           expiresAt: {
             type: 'string',
+            format: 'datetime',
             description:
               'The date and time at which the muted word will expire and no longer be applied.',
           },
