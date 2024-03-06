@@ -1210,7 +1210,7 @@ describe('agent', () => {
           expect(word!.expiresAt).toEqual(expiresAt)
         })
 
-        it('single-hash #', async () => {
+        it('single-hash #, no insert', async () => {
           await agent.addMutedWord({ value: '#', targets: [] })
           const { mutedWords } = await agent.getPreferences()
 
@@ -1218,44 +1218,50 @@ describe('agent', () => {
           expect(mutedWords.length).toEqual(0)
         })
 
-        it('multi-hash ##', async () => {
+        it('multi-hash ##, inserts #', async () => {
           await agent.addMutedWord({ value: '##', targets: [] })
           const { mutedWords } = await agent.getPreferences()
           expect(mutedWords.find((m) => m.value === '#')).toBeTruthy()
         })
 
-        it('multi-hash ##hashtag', async () => {
+        it('multi-hash ##hashtag, inserts #hashtag', async () => {
           await agent.addMutedWord({ value: '##hashtag', targets: [] })
           const { mutedWords } = await agent.getPreferences()
           expect(mutedWords.find((w) => w.value === '#hashtag')).toBeTruthy()
         })
 
-        it('hash emoji #️⃣', async () => {
+        it('hash emoji #️⃣, inserts #️⃣', async () => {
           await agent.addMutedWord({ value: '#️⃣', targets: [] })
           const { mutedWords } = await agent.getPreferences()
           expect(mutedWords.find((m) => m.value === '#️⃣')).toBeTruthy()
         })
 
-        it('hash emoji ##️⃣', async () => {
+        it('hash emoji w/leading hash ##️⃣, inserts #️⃣', async () => {
           await agent.addMutedWord({ value: '##️⃣', targets: [] })
           const { mutedWords } = await agent.getPreferences()
           expect(mutedWords.find((m) => m.value === '#️⃣')).toBeTruthy()
         })
 
-        it('hash emoji ###️⃣', async () => {
+        it('hash emoji with double leading hash ###️⃣, inserts ##️⃣', async () => {
           await agent.addMutedWord({ value: '###️⃣', targets: [] })
           const { mutedWords } = await agent.getPreferences()
           expect(mutedWords.find((m) => m.value === '##️⃣')).toBeTruthy()
         })
 
         describe(`invalid characters`, () => {
-          it('zero width space', async () => {
+          it('#<zws>, no insert', async () => {
             await agent.addMutedWord({ value: '#​', targets: [] })
             const { mutedWords } = await agent.getPreferences()
             expect(mutedWords.length).toEqual(0)
           })
 
-          it('newline', async () => {
+          it('#<zws>ab, inserts ab', async () => {
+            await agent.addMutedWord({ value: '#​ab', targets: [] })
+            const { mutedWords } = await agent.getPreferences()
+            expect(mutedWords.length).toEqual(1)
+          })
+
+          it('phrase with newline, inserts phrase without newline', async () => {
             await agent.addMutedWord({
               value: 'test value\n with newline',
               targets: [],
@@ -1266,7 +1272,7 @@ describe('agent', () => {
             ).toBeTruthy()
           })
 
-          it('newline(s)', async () => {
+          it('phrase with newlines, inserts phrase without newlines', async () => {
             await agent.addMutedWord({
               value: 'test value\n\r with newline',
               targets: [],
@@ -1277,13 +1283,13 @@ describe('agent', () => {
             ).toBeTruthy()
           })
 
-          it('empty space', async () => {
+          it('empty space, no insert', async () => {
             await agent.addMutedWord({ value: ' ', targets: [] })
             const { mutedWords } = await agent.getPreferences()
             expect(mutedWords.length).toEqual(0)
           })
 
-          it('leading/trailing space', async () => {
+          it(`' trim ', inserts 'trim'`, async () => {
             await agent.addMutedWord({ value: ' trim ', targets: [] })
             const { mutedWords } = await agent.getPreferences()
             expect(mutedWords.find((m) => m.value === 'trim')).toBeTruthy()
@@ -1306,7 +1312,7 @@ describe('agent', () => {
       })
 
       describe('upsertMutedWords (deprecated)', () => {
-        it('inserts double, no longer upserts', async () => {
+        it('no longer upserts, calls addMutedWords', async () => {
           await agent.upsertMutedWords([
             { value: 'both', targets: ['content'] },
           ])
@@ -1328,7 +1334,28 @@ describe('agent', () => {
           expect(mutedWords.length).toEqual(0)
         })
 
-        it('updates existing word', async () => {
+        it('updates and sanitizes new value', async () => {
+          await agent.addMutedWord({
+            value: 'value',
+            targets: ['content'],
+          })
+
+          const a = await agent.getPreferences()
+          const word = a.mutedWords.find((m) => m.value === 'value')
+
+          await agent.updateMutedWord({
+            ...word!,
+            value: '#new value',
+          })
+
+          const b = await agent.getPreferences()
+          const updatedWord = b.mutedWords.find((m) => m.id === word!.id)
+
+          expect(updatedWord!.value).toEqual('new value')
+          expect(updatedWord).toHaveProperty('targets', ['content'])
+        })
+
+        it('updates targets', async () => {
           await agent.addMutedWord({
             value: 'word',
             targets: ['tag'],
@@ -1350,29 +1377,7 @@ describe('agent', () => {
           )
         })
 
-        it('updates existing, sanitizes value', async () => {
-          await agent.addMutedWord({
-            value: 'value',
-            targets: ['content'],
-          })
-
-          const a = await agent.getPreferences()
-          const word = a.mutedWords.find((m) => m.value === 'value')
-
-          await agent.updateMutedWord({
-            ...word!,
-            value: 'new value',
-          })
-
-          const b = await agent.getPreferences()
-
-          expect(b.mutedWords.find((m) => m.id === word!.id)).toHaveProperty(
-            'targets',
-            ['content'],
-          )
-        })
-
-        it('updates existing actors', async () => {
+        it('updates actors', async () => {
           await agent.addMutedWord({
             value: 'value',
             targets: ['content'],
@@ -1434,7 +1439,7 @@ describe('agent', () => {
           expect(b.mutedWords.find((m) => m.id === word!.id)).toBeFalsy()
         })
 
-        it(`attempt to remove word that doesn't exist, no action`, async () => {
+        it(`word doesn't exist, no action`, async () => {
           await agent.addMutedWord({ value: 'word', targets: ['tag'] })
           const a = await agent.getPreferences()
           const word = a.mutedWords.find((m) => m.value === 'word')
