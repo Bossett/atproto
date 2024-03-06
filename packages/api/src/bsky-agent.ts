@@ -838,8 +838,6 @@ function migrateLegacyMutedWordsItems(items: AppBskyActorDefs.MutedWord[]) {
   return items.map((item) => ({
     ...item,
     id: item.id || TID.nextStr(),
-    actors: item.actors || [],
-    expiresAt: item.expiresAt || undefined,
   }))
 }
 
